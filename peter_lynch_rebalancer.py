@@ -177,11 +177,29 @@ def plan_lynch_rebalancing(
         "is_mock": bal["is_mock"],
         "is_virtual": is_virtual,
         "total_asset": round(total_asset, 2),
+        "total_asset_usd": round(total_asset, 2),
+        "cash_available": round(cash_available, 2),
         "target_count": target_count,
         "target_equity_per_stock": round(target_equity_per_stock, 2),
         "orders": orders,
         "top_candidates": top_candidates
     }
+
+
+
+def trigger_peter_lynch_dashboard_sync():
+    """모바일 대시보드(GitHub Pages) 비동기 동기화"""
+    import threading
+    import subprocess
+    def _worker():
+        try:
+            CREATE_NO_WINDOW = 0x08000000
+            subprocess.run([sys.executable, "dashboard_generator.py"], cwd=BASE_DIR, capture_output=True, text=True, timeout=60, creationflags=CREATE_NO_WINDOW)
+            subprocess.run([sys.executable, "sync_to_github.py"], cwd=BASE_DIR, capture_output=True, text=True, timeout=120, creationflags=CREATE_NO_WINDOW)
+            print("[웹 대시보드] 📱 스마트폰 모바일 대시보드(GitHub Pages) 실시간 동기화 완료!")
+        except Exception as e:
+            print(f"[웹 대시보드 동기화 오류] {e}")
+    threading.Thread(target=_worker, daemon=True).start()
 
 
 def execute_rebalancing(
@@ -247,12 +265,13 @@ def execute_rebalancing(
     new_portfolio_positions = []
 
     if not is_dry_run:
-        # 🛡️ 안전장치: 실제 외화(USD) 예수금 잔고 재확인
+        # 🛡️ 안전장치: 실제 외화(USD) 가용 구매력(현재 현금 + 매도 예정액) 확인
         real_bal = client.get_us_balance()
         real_cash = real_bal.get("cash_usd", 0.0)
-        if real_cash < total_buy_amt and not real_bal.get("is_virtual_fallback"):
-            print(f"\n❌ [안전장치 차단] 가용 외화(USD) 예수금(${real_cash:,.2f})이 매수 필요 금액(${total_buy_amt:,.2f})보다 부족합니다.")
-            print("💡 한국투자증권 앱(MTS)에서 원화를 외화(USD)로 환전하신 후 다시 실행해주세요. (불필요한 오류 주문 방지)")
+        available_purchasing_power = real_cash + total_sell_amt
+        if available_purchasing_power < total_buy_amt * 0.95 and not real_bal.get("is_virtual_fallback"):
+            print(f"\n❌ [안전장치 차단] 가용 구매력(${available_purchasing_power:,.2f} = 예수금 ${real_cash:,.2f} + 매도대금 ${total_sell_amt:,.2f})이 매수 필요 금액(${total_buy_amt:,.2f})보다 부족합니다.")
+            print("💡 한국투자증권 앱(MTS)에서 원화를 외화(USD)로 환전하시거나 매수 규모를 조정해주세요.")
             return {"success": False, "msg": "외화 예수금 부족으로 주문 취소", "plan": plan}
 
         print("\n🚀 [KIS API 미국 주식 주문 전송 시작]...")
@@ -269,24 +288,43 @@ def execute_rebalancing(
             status_icon = "✅" if res.get("success") else "❌"
             print(f" {status_icon} {o['side']} {o['symbol']} x {o['qty']}주 @ ${o['price']:.2f} -> {res.get('msg')}")
 
-        # 포트폴리오 JSON 갱신
+        # 포트폴리오 JSON 갱신 (기존 보유 종목의 평단가 가중치 및 매수일자 보존)
+        old_portfolio = {p.get("symbol", p.get("code", "")).upper(): p for p in load_portfolio()}
         for c in plan["top_candidates"]:
+            sym = c["symbol"].upper()
             target_sh = int(plan["target_equity_per_stock"] / float(c["price"]))
             if target_sh > 0:
+                p_curr = float(c["price"])
+                old_p = old_portfolio.get(sym)
+                if old_p and old_p.get("shares", 0) > 0:
+                    old_sh = old_p.get("shares", 0)
+                    old_bp = float(old_p.get("buy_price", p_curr))
+                    # 가중 평균 단가
+                    if target_sh > old_sh:
+                        add_sh = target_sh - old_sh
+                        new_bp = round((old_sh * old_bp + add_sh * p_curr) / target_sh, 2)
+                    else:
+                        new_bp = old_bp
+                    buy_date = old_p.get("buy_date", datetime.datetime.now().strftime("%Y-%m-%d"))
+                else:
+                    new_bp = p_curr
+                    buy_date = datetime.datetime.now().strftime("%Y-%m-%d")
+
                 new_portfolio_positions.append({
-                    "symbol": c["symbol"],
-                    "code": c["symbol"],
-                    "name": c.get("name", c["symbol"]),
+                    "symbol": sym,
+                    "code": sym,
+                    "name": c.get("name", sym),
                     "market": "US",
                     "shares": target_sh,
-                    "buy_price": float(c["price"]),
-                    "buy_date": datetime.datetime.now().strftime("%Y-%m-%d"),
+                    "buy_price": new_bp,
+                    "buy_date": buy_date,
                     "initial_peg": c.get("peg"),
                     "fair_value": c.get("fair_value"),
                     "memo": "피터 린치 자동 리밸런싱"
                 })
         save_portfolio(new_portfolio_positions)
         print("💾 portfolio.json 포트폴리오 내역이 성공적으로 갱신되었습니다.")
+        trigger_peter_lynch_dashboard_sync()
 
     else:
         # Dry-run 시뮬레이션
