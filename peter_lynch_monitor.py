@@ -169,6 +169,14 @@ def run_peter_lynch_monitor(send_telegram: bool = True) -> list[dict]:
         print("   - KIS 계좌 연동 시 실제 잔고가 자동으로 동기화되거나,")
         print("   - 'results/peter_lynch_top_picks.csv' 종목을 포트폴리오에 추가할 수 있습니다.\n")
         
+        with open(SIGNALS_FILE, "w", encoding="utf-8") as f:
+            json.dump({
+                "updated_at": today_str,
+                "total_eval_usd": 0.0,
+                "total_profit_usd": 0.0,
+                "signals": []
+            }, f, indent=2, ensure_ascii=False)
+        
         # 최신 스크리닝 결과가 있으면 TOP 5 안내
         top_picks = []
         if os.path.exists(TOP_PICKS_FILE):
