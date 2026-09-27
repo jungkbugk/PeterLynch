@@ -50,8 +50,8 @@ BENCHMARK_TICKER = "SPY" # S&P 500 ETF
 
 
 def run_peter_lynch_backtest(
-    start_date: str = "2021-01-01",
-    end_date: str = "2026-09-26",
+    start_date: str = "2005-01-01",
+    end_date: str = "2026-09-27",
     initial_capital: float = 100_000.0, # $100,000 시작
 ):
     print("=" * 80)
