@@ -59,23 +59,62 @@ def generate_peter_lynch_dashboard_html() -> str:
     now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     qr_b64 = ensure_qr_code()
 
-    # 1. 포트폴리오 및 진단 신호 로드
+    # 1. KIS US 기 실계좌 연동 우선 시도
     portfolio = []
     signals_data = {}
     total_eval_usd = 0.0
     total_profit_usd = 0.0
+    cash_usd = 0.0
+    bal = {}
 
-    if os.path.exists(SIGNALS_FILE):
+    try:
+        from kis_us_api import KisUsClient
+        client = KisUsClient()
+        bal = client.get_us_balance()
+        
+        # API 조회 성공 및 가상 폴백이 아닌 경우 우선 적용
+        if not bal.get("is_virtual_fallback"):
+            total_eval_usd = float(bal.get("total_asset_usd", 0.0))
+            total_profit_usd = float(bal.get("total_profit_usd", 0.0))
+            cash_usd = float(bal.get("cash_usd", 0.0))
+            # KIS API holdings 형식을 dashboard 렌더링 형식에 맞춤
+            for h in bal.get("holdings", []):
+                sym = h.get("symbol", "").upper()
+                cp = h.get("current_price", 0.0)
+                bp = h.get("buy_price", 0.0)
+                sh = h.get("shares", 0)
+                ret = h.get("return_pct", 0.0)
+                portfolio.append({
+                    "symbol": sym,
+                    "name": h.get("name", sym),
+                    "shares": sh,
+                    "buy_price": bp,
+                    "price": cp,
+                    "return_pct": ret,
+                    "eval_amount": h.get("eval_amount", cp * sh),
+                    "tag": "🟢정상홀딩",
+                    "reason": "실전 계좌 연동"
+                })
+    except Exception as e:
+        print(f"KIS US API 연동 중 오류 발생: {e}")
+
+    # API에서 포트폴리오를 가져오지 못한 경우 (또는 실계좌 비어있을 때) signals 데이터도 로드
+    if not portfolio and os.path.exists(SIGNALS_FILE):
         try:
             with open(SIGNALS_FILE, "r", encoding="utf-8") as f:
                 signals_data = json.load(f)
-                total_eval_usd = float(signals_data.get("total_eval_usd", 0.0))
-                total_profit_usd = float(signals_data.get("total_profit_usd", 0.0))
-                portfolio = signals_data.get("signals", [])
+                if total_eval_usd == 0:
+                    total_eval_usd = float(signals_data.get("total_eval_usd", 0.0))
+                    total_profit_usd = float(signals_data.get("total_profit_usd", 0.0))
+                # 실계좌가 정말로 비어있는 것이라면, signals의 데이터를 보여주는 것이 맞는지 여부 판단.
+                # 사용자 요청: "실제 계좌에 없는 종목들이 대시보드에서 보유 포트폴리오로 보이는 것" 방지.
+                # 따라서 signals 데이터는 KIS API가 실패했거나 mock일 때만 표시하도록 제한.
+                if bal.get("is_virtual_fallback", True):
+                    portfolio = signals_data.get("signals", [])
         except Exception:
-            portfolio = []
+            pass
 
-    if not portfolio and os.path.exists(PORTFOLIO_FILE):
+    if not portfolio and os.path.exists(PORTFOLIO_FILE) and bal.get("is_virtual_fallback", True):
         try:
             with open(PORTFOLIO_FILE, "r", encoding="utf-8") as f:
                 raw_p = json.load(f)
@@ -711,7 +750,7 @@ def generate_peter_lynch_dashboard_html() -> str:
             </div>
             <div class="metric-card">
                 <div class="title">💵 주문가능 USD 예수금</div>
-                <div class="value" style="color: var(--accent-green);">$0.00</div>
+                <div class="value" style="color: var(--accent-green);">${cash_usd:,.2f}</div>
                 <div class="sub">10종목 균등 1/N 배분 대기</div>
             </div>
             <div class="metric-card">
