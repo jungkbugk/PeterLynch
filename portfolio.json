@@ -1,1 +1,86 @@
-[]
+[
+  {
+    "symbol": "CSGP",
+    "code": "CSGP",
+    "name": "CoStar Group, Inc.",
+    "market": "US",
+    "shares": 13,
+    "buy_price": 27.61,
+    "buy_date": "2026-09-28",
+    "initial_peg": 0.1,
+    "fair_value": 6.3,
+    "memo": "피터 린치 자동 리밸런싱"
+  },
+  {
+    "symbol": "CVS",
+    "code": "CVS",
+    "name": "CVS Health Corporation",
+    "market": "US",
+    "shares": 4,
+    "buy_price": 89.55,
+    "buy_date": "2026-09-28",
+    "initial_peg": 0.21,
+    "fair_value": 132.65,
+    "memo": "피터 린치 자동 리밸런싱"
+  },
+  {
+    "symbol": "AVGO",
+    "code": "AVGO",
+    "name": "Broadcom Inc.",
+    "market": "US",
+    "shares": 1,
+    "buy_price": 353.755,
+    "buy_date": "2026-09-28",
+    "initial_peg": 0.35,
+    "fair_value": 274.75,
+    "memo": "피터 린치 자동 리밸런싱"
+  },
+  {
+    "symbol": "COO",
+    "code": "COO",
+    "name": "The Cooper Companies, Inc.",
+    "market": "US",
+    "shares": 6,
+    "buy_price": 54.955,
+    "buy_date": "2026-09-28",
+    "initial_peg": 0.52,
+    "fair_value": 101.85,
+    "memo": "피터 린치 자동 리밸런싱"
+  },
+  {
+    "symbol": "CF",
+    "code": "CF",
+    "name": "CF Industries Holdings, Inc.",
+    "market": "US",
+    "shares": 3,
+    "buy_price": 116.79,
+    "buy_date": "2026-09-28",
+    "initial_peg": 0.52,
+    "fair_value": 472.15,
+    "memo": "피터 린치 자동 리밸런싱"
+  },
+  {
+    "symbol": "BSX",
+    "code": "BSX",
+    "name": "Boston Scientific Corporation",
+    "market": "US",
+    "shares": 8,
+    "buy_price": 43.905,
+    "buy_date": "2026-09-28",
+    "initial_peg": 0.62,
+    "fair_value": 37.3,
+    "memo": "피터 린치 자동 리밸런싱"
+  },
+  {
+    "symbol": "CVX",
+    "code": "CVX",
+    "name": "Chevron Corporation",
+    "market": "US",
+    "shares": 1,
+    "buy_price": 206.765,
+    "buy_date": "2026-09-28",
+    "initial_peg": 0.89,
+    "fair_value": 364.0,
+    "memo": "피터 린치 자동 리밸런싱"
+  }
+]
