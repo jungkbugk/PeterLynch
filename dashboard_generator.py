@@ -98,28 +98,66 @@ def generate_peter_lynch_dashboard_html() -> str:
     except Exception as e:
         print(f"KIS US API 연동 중 오류 발생: {e}")
 
-    # API에서 포트폴리오를 가져오지 못한 경우 (또는 실계좌 비어있을 때) signals 데이터도 로드
-    if not portfolio and os.path.exists(SIGNALS_FILE):
+    # API에서 포트폴리오를 가져오지 못한 경우 (미국 증시 체결 정산 지연 또는 계좌 동기화 시점)
+    if not portfolio and os.path.exists(PORTFOLIO_FILE):
+        try:
+            with open(PORTFOLIO_FILE, "r", encoding="utf-8") as f:
+                raw_p = json.load(f)
+                if isinstance(raw_p, list) and len(raw_p) > 0:
+                    import yfinance as yf
+                    stocks_eval_sum = 0.0
+                    for item in raw_p:
+                        sym = item.get("symbol", item.get("code", "")).upper()
+                        sh = int(item.get("shares", 0))
+                        bp = float(item.get("buy_price", 0.0))
+                        # 실시간 시세 조회 시도
+                        cp = bp
+                        try:
+                            t = yf.Ticker(sym)
+                            curr_val = t.info.get("currentPrice") or t.info.get("regularMarketPrice")
+                            if curr_val and float(curr_val) > 0:
+                                cp = float(curr_val)
+                        except Exception:
+                            cp = bp
+                        
+                        ret = ((cp - bp) / bp * 100) if bp > 0 else 0.0
+                        eval_amt = cp * sh
+                        stocks_eval_sum += eval_amt
+                        
+                        portfolio.append({
+                            "symbol": sym,
+                            "name": item.get("name", sym),
+                            "shares": sh,
+                            "buy_price": bp,
+                            "price": round(cp, 2),
+                            "current_price": round(cp, 2),
+                            "return_pct": round(ret, 2),
+                            "eval_amount": round(eval_amt, 2),
+                            "peg": item.get("initial_peg", "-"),
+                            "fair_value": item.get("fair_value", 0.0),
+                            "tag": "🟢정상보유",
+                            "reason": "피터 린치 실전 계좌 매수 포지션"
+                        })
+                    
+                    # 자산 및 현금 보정
+                    if cash_usd > stocks_eval_sum:
+                        # KIS 예수금이 아직 전액($3,681)으로 잡혀있는 경우 잔여 현금 분리
+                        cash_usd = round(cash_usd - stocks_eval_sum, 2)
+                        total_eval_usd = round(cash_usd + stocks_eval_sum, 2)
+                    elif total_eval_usd == 0:
+                        total_eval_usd = round(stocks_eval_sum + cash_usd, 2)
+        except Exception as e:
+            print(f"portfolio.json 파싱 오류: {e}")
+
+    # 1-2. 여전히 비어있다면 signals 파일 참조 (모의/가상 테스트용)
+    if not portfolio and os.path.exists(SIGNALS_FILE) and bal.get("is_virtual_fallback", True):
         try:
             with open(SIGNALS_FILE, "r", encoding="utf-8") as f:
                 signals_data = json.load(f)
                 if total_eval_usd == 0:
                     total_eval_usd = float(signals_data.get("total_eval_usd", 0.0))
                     total_profit_usd = float(signals_data.get("total_profit_usd", 0.0))
-                # 실계좌가 정말로 비어있는 것이라면, signals의 데이터를 보여주는 것이 맞는지 여부 판단.
-                # 사용자 요청: "실제 계좌에 없는 종목들이 대시보드에서 보유 포트폴리오로 보이는 것" 방지.
-                # 따라서 signals 데이터는 KIS API가 실패했거나 mock일 때만 표시하도록 제한.
-                if bal.get("is_virtual_fallback", True):
-                    portfolio = signals_data.get("signals", [])
-        except Exception:
-            pass
-
-    if not portfolio and os.path.exists(PORTFOLIO_FILE) and bal.get("is_virtual_fallback", True):
-        try:
-            with open(PORTFOLIO_FILE, "r", encoding="utf-8") as f:
-                raw_p = json.load(f)
-                if isinstance(raw_p, list) and len(raw_p) > 0:
-                    portfolio = raw_p
+                portfolio = signals_data.get("signals", [])
         except Exception:
             pass
 
