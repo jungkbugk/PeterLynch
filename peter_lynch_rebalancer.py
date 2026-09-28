@@ -194,8 +194,26 @@ def trigger_peter_lynch_dashboard_sync():
     def _worker():
         try:
             CREATE_NO_WINDOW = 0x08000000
-            subprocess.run([sys.executable, "dashboard_generator.py"], cwd=BASE_DIR, capture_output=True, text=True, timeout=60, creationflags=CREATE_NO_WINDOW)
-            subprocess.run([sys.executable, "sync_to_github.py"], cwd=BASE_DIR, capture_output=True, text=True, timeout=120, creationflags=CREATE_NO_WINDOW)
+            subprocess.run(
+                [sys.executable, "dashboard_generator.py"],
+                cwd=BASE_DIR,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=60,
+                creationflags=CREATE_NO_WINDOW
+            )
+            subprocess.run(
+                [sys.executable, "sync_to_github.py"],
+                cwd=BASE_DIR,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=120,
+                creationflags=CREATE_NO_WINDOW
+            )
             print("[웹 대시보드] 📱 스마트폰 모바일 대시보드(GitHub Pages) 실시간 동기화 완료!")
         except Exception as e:
             print(f"[웹 대시보드 동기화 오류] {e}")
