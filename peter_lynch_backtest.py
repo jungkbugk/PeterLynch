@@ -1,7 +1,7 @@
-"""미국 증시 피터 린치(Peter Lynch) GARP 전략 5개년 실증 백테스팅 엔진 (peter_lynch_backtest.py)
+"""미국 증시 미국 가치주(US Value) 가치주 전략 5개년 실증 백테스팅 엔진 (peter_lynch_backtest.py)
 
 - 벤치마크: S&P 500 지수 ETF (SPY)
-- 전략 포트폴리오: 피터 린치 5대 기준(PEG < 1.0, EPS성장 15~35%, 부채비율 < 80%, FCF 흑자) 충족 포트폴리오
+- 전략 포트폴리오: 미국 가치주 5대 기준(PEG < 1.0, EPS성장 15~35%, 부채비율 < 80%, FCF 흑자) 충족 포트폴리오
 - 5년간(2021~2026) 일간 실데이터 기반 자산 평가, CAGR, MDD, 샤프지수, 알파(Alpha) 정밀 산출
 - 고해상도 성과 비교 차트 생성 (results/peter_lynch_vs_sp500_5yr.png)
 """
@@ -30,7 +30,7 @@ RESULTS_DIR = os.path.join(BASE_DIR, "results")
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
 
-# 피터 린치 5대 퀀트 조건에 부합하는 대표 GARP 우량/고성장 포트폴리오 (다각화 12종목)
+# 미국 가치주 5대 퀀트 조건에 부합하는 대표 가치주 우량/고성장 포트폴리오 (다각화 12종목)
 LYNCH_PORTFOLIO_TICKERS = [
     "NVDA", # 고성장 테크, 초저PEG
     "AVGO", # 통신/반도체 고성장 저부채
@@ -55,7 +55,7 @@ def run_peter_lynch_backtest(
     initial_capital: float = 100_000.0, # $100,000 시작
 ):
     print("=" * 80)
-    print(" 🇺🇸 [미국 증시 피터 린치(Peter Lynch) 전략 5개년 실증 백테스팅]")
+    print(" 🇺🇸 [미국 증시 미국 가치주(US Value) 전략 5개년 실증 백테스팅]")
     print(f" • 검증 기간: {start_date} ~ {end_date} (5년 9개월)")
     print(f" • 시작 원금: ${initial_capital:,.0f} USD (약 {initial_capital*1380:,.0f}원)")
     print(" • 비교 벤치마크: S&P 500 지수 ETF (SPY)")
@@ -82,7 +82,7 @@ def run_peter_lynch_backtest(
     # 종목별 일간 수익률 산출
     returns_df = price_df.pct_change().dropna(how='all')
 
-    # 2. 피터 린치 동일가중(Equal-Weight) 포트폴리오 수익률 계산
+    # 2. 미국 가치주 동일가중(Equal-Weight) 포트폴리오 수익률 계산
     lynch_tickers_valid = [t for t in LYNCH_PORTFOLIO_TICKERS if t in returns_df.columns]
     lynch_returns = returns_df[lynch_tickers_valid].mean(axis=1, skipna=True).dropna()
 
@@ -146,9 +146,9 @@ def run_peter_lynch_backtest(
 
     # 5. 콘솔 리포트 출력
     print("\n" + "=" * 70)
-    print(" 🏆 피터 린치 GARP 전략 vs S&P 500 (SPY) 5개년 성과 비교")
+    print(" 🏆 미국 가치주 전략 vs S&P 500 (SPY) 5개년 성과 비교")
     print("=" * 70)
-    print(f" {'성과 지표':<22} | {'피터 린치 포트폴리오':>18} | {'S&P 500 (SPY)':>15}")
+    print(f" {'성과 지표':<22} | {'미국 가치주 포트폴리오':>18} | {'S&P 500 (SPY)':>15}")
     print("-" * 70)
     print(f" {'최종 평가 자산':<20} | ${lynch_equity.iloc[-1]:>17,.0f} | ${spy_equity.iloc[-1]:>14,.0f}")
     print(f" {'누적 총 수익률':<20} | {lynch_total_ret:>17.2f}% | {spy_total_ret:>14.2f}%")
@@ -162,16 +162,16 @@ def run_peter_lynch_backtest(
 
     print("\n📅 [연도별 수익률 비교]")
     for year, row in annual_ret.iterrows():
-        print(f"  • {year}년: 피터린치 {row['Lynch']:+6.1f}% vs SPY {row['SPY']:+6.1f}% (격차: {row['Lynch']-row['SPY']:+6.1f}%p)")
+        print(f"  • {year}년: 미국 가치주 {row['Lynch']:+6.1f}% vs SPY {row['SPY']:+6.1f}% (격차: {row['Lynch']-row['SPY']:+6.1f}%p)")
 
     # 6. 고해상도 시각화 차트 생성
     fig = plt.figure(figsize=(14, 11), facecolor="#0b0e14")
 
     # 서브플롯 1: 누적 자산 성장 곡선
     ax1 = fig.add_subplot(3, 1, 1, facecolor="#151922")
-    ax1.plot(lynch_equity.index, lynch_equity.values, label=f"피터 린치 포트폴리오 (+{lynch_total_ret:.1f}%, CAGR {lynch_cagr:.1f}%)", color="#0ecb81", linewidth=2.5)
+    ax1.plot(lynch_equity.index, lynch_equity.values, label=f"미국 가치주 포트폴리오 (+{lynch_total_ret:.1f}%, CAGR {lynch_cagr:.1f}%)", color="#0ecb81", linewidth=2.5)
     ax1.plot(spy_equity.index, spy_equity.values, label=f"S&P 500 (SPY) (+{spy_total_ret:.1f}%, CAGR {spy_cagr:.1f}%)", color="#f0b90b", linewidth=1.8, linestyle="--")
-    ax1.set_title("미국 증시 피터 린치(Peter Lynch) GARP 전략 vs S&P 500 누적 자산 성장 곡선 (2021~2026)", fontsize=13, fontweight="bold", color="#f0f6fc", pad=12)
+    ax1.set_title("미국 증시 미국 가치주(US Value) 가치주 전략 vs S&P 500 누적 자산 성장 곡선 (2021~2026)", fontsize=13, fontweight="bold", color="#f0f6fc", pad=12)
     ax1.set_ylabel("자산 평가액 ($ USD)", color="#8b949e", fontsize=10)
     ax1.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f"${x:,.0f}"))
     ax1.grid(True, color="#242b38", linestyle="--", alpha=0.7)
@@ -180,7 +180,7 @@ def run_peter_lynch_backtest(
 
     # 서브플롯 2: 최대 낙폭 (Underwater Drawdown)
     ax2 = fig.add_subplot(3, 1, 2, facecolor="#151922")
-    ax2.plot(lynch_dd.index, lynch_dd.values, label=f"피터 린치 MDD ({lynch_mdd:.1f}%)", color="#0ecb81", linewidth=1.5)
+    ax2.plot(lynch_dd.index, lynch_dd.values, label=f"미국 가치주 MDD ({lynch_mdd:.1f}%)", color="#0ecb81", linewidth=1.5)
     ax2.plot(spy_dd.index, spy_dd.values, label=f"S&P 500 MDD ({spy_mdd:.1f}%)", color="#f0b90b", linewidth=1.2, linestyle=":")
     ax2.fill_between(lynch_dd.index, lynch_dd.values, 0, color="#0ecb81", alpha=0.15)
     ax2.set_title("구간별 자산 고점 대비 낙폭 (Drawdown %)", fontsize=11, fontweight="bold", color="#f0f6fc", pad=10)
@@ -195,7 +195,7 @@ def run_peter_lynch_backtest(
     x = np.arange(len(years_list))
     width = 0.35
 
-    rects1 = ax3.bar(x - width/2, annual_ret["Lynch"], width, label="피터 린치", color="#0ecb81")
+    rects1 = ax3.bar(x - width/2, annual_ret["Lynch"], width, label="미국 가치주", color="#0ecb81")
     rects2 = ax3.bar(x + width/2, annual_ret["SPY"], width, label="S&P 500 (SPY)", color="#f0b90b")
 
     ax3.set_title("연도별 연간 수익률 비교 (Annual Return %)", fontsize=11, fontweight="bold", color="#f0f6fc", pad=10)
@@ -229,7 +229,7 @@ def run_peter_lynch_backtest(
 
     # 성과 요약 CSV 저장
     summary_df = pd.DataFrame([{
-        "전략명": "피터 린치 GARP 포트폴리오",
+        "전략명": "미국 가치주 포트폴리오",
         "최종자산($)": round(lynch_equity.iloc[-1], 2),
         "총수익률(%)": round(lynch_total_ret, 2),
         "CAGR(%)": round(lynch_cagr, 2),
