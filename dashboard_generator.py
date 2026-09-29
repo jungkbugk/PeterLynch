@@ -1,12 +1,12 @@
-"""피터 린치 미국 저평가 성장주 모바일 & 웹 대시보드 생성기 (dashboard_generator.py)
+"""미국 저평가 가치주 모바일 & 웹 대시보드 생성기 (dashboard_generator.py)
 
 - 모바일 스마트폰(iOS/Android) 및 데스크톱 브라우저에 최적화된 반응형 UI 대시보드를 생성합니다.
 - GitHub Pages(index.html) 배포 규격 완벽 호환.
 - 1) 외화 평가자산 및 S&P 500 시장 레짐
   2) 보유 포지션 실시간 진단 (스마트폰 카드 뷰 & 데스크톱 테이블 뷰 전환)
-  3) S&P 500 피터 린치 TOP 15 저평가 고성장주 발굴 현황
-  4) 20개년 퀀트 전략 실증 성과 비교 (🥇 국장 미너비니 27.6% vs 🥈 미장 피터린치 22.2%)
-  5) 인터랙티브 린치 적정주가 계산기 (원터치 프리셋 지원)
+  3) S&P 500 미국 가치주 TOP 15 저평가 가치주 발굴 현황
+  4) 20개년 퀀트 전략 실증 성과 비교 (🥇 국장 미너비니 27.6% vs 🥈 미장 미국 가치주 22.2%)
+  5) 인터랙티브 적정주가 계산기 (원터치 프리셋 지원)
   6) 모바일 QR 코드 스캔 및 국장 미너비니 대시보드 연동
 """
 
@@ -136,7 +136,7 @@ def generate_peter_lynch_dashboard_html() -> str:
                             "peg": item.get("initial_peg", "-"),
                             "fair_value": item.get("fair_value", 0.0),
                             "tag": "🟢정상보유",
-                            "reason": "피터 린치 실전 계좌 매수 포지션"
+                            "reason": "미국 가치주 실전 계좌 매수 포지션"
                         })
                     
                     # 자산 및 현금 보정
@@ -181,7 +181,7 @@ def generate_peter_lynch_dashboard_html() -> str:
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#0d1117">
-    <title>피터 린치 미국 퀀트 대시보드 | 모바일 & 웹</title>
+    <title>미국 가치주 미국 퀀트 대시보드 | 모바일 & 웹</title>
     <style>
         :root {{
             --bg-base: #0a0d12;
@@ -748,7 +748,7 @@ def generate_peter_lynch_dashboard_html() -> str:
         <div class="top-navbar">
             <div class="brand-badge">
                 <span class="live-dot"></span>
-                <span>🏛️ Peter Lynch US GARP</span>
+                <span>🏛️ US Value US 가치주</span>
             </div>
             <div class="nav-links">
                 <a href="{MINERVINI_PAGES_URL}" target="_blank" class="btn-link btn-gold" title="한국형 마크 미너비니 추세추종 대시보드 바로가기">
@@ -766,7 +766,7 @@ def generate_peter_lynch_dashboard_html() -> str:
         <!-- 메인 헤더 배너 -->
         <div class="header">
             <h1>
-                <span>피터 린치 미국 저평가 성장주 퀀트 대시보드</span>
+                <span>미국 저평가 가치주 퀀트 대시보드</span>
                 <span class="badge-medal">🥈 20년 백테스트 은메달 (CAGR 22.2%)</span>
             </h1>
             <p>
@@ -815,8 +815,8 @@ def generate_peter_lynch_dashboard_html() -> str:
         <div class="section" id="section-portfolio">
             <div class="section-header">
                 <div>
-                    <div class="section-title">💼 내 피터 린치 보유 포트폴리오 실시간 진단</div>
-                    <div class="section-subtitle">피터 린치 5대 원칙(공정가치, PEG버블, 실적훼손, 비상손절) 실시간 상태 감시</div>
+                    <div class="section-title">💼 내 미국 가치주 보유 포트폴리오 실시간 진단</div>
+                    <div class="section-subtitle">미국 가치주 5대 원칙(공정가치, PEG버블, 실적훼손, 비상손절) 실시간 상태 감시</div>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <span class="tag tag-blue">보유: {len(portfolio)}종목</span>
@@ -877,7 +877,7 @@ def generate_peter_lynch_dashboard_html() -> str:
                         </div>
                     </div>
                     <div class="card-bottom-row">
-                        <div>PEG: <strong style="color: var(--accent-blue);">{peg}</strong> · 린치 적정가: <strong style="color: var(--accent-gold);">${fair_v:.2f}</strong></div>
+                        <div>PEG: <strong style="color: var(--accent-blue);">{peg}</strong> · 적정가: <strong style="color: var(--accent-gold);">${fair_v:.2f}</strong></div>
                         <div style="color: var(--text-muted);">{reason}</div>
                     </div>
                 </div>
@@ -896,7 +896,7 @@ def generate_peter_lynch_dashboard_html() -> str:
                             <th class="text-right">현재가($)</th>
                             <th class="text-center">손익률</th>
                             <th class="text-center">현재 PEG</th>
-                            <th class="text-right">린치 적정가($)</th>
+                            <th class="text-right">적정가($)</th>
                             <th class="text-center">진단 신호</th>
                             <th>행동 지침</th>
                         </tr>
@@ -937,15 +937,15 @@ def generate_peter_lynch_dashboard_html() -> str:
             </div>
 """
 
-    # 섹션 2: S&P 500 TOP 15 저평가 성장주
+    # 섹션 2: S&P 500 TOP 15 저평가 가치주
     html += f"""
         </div>
 
-        <!-- 섹션 2: S&P 500 피터 린치 최우수 저평가 고성장주 TOP 15 -->
+        <!-- 섹션 2: S&P 500 미국 가치주 최우수 저평가 가치주 TOP 15 -->
         <div class="section" id="section-toppicks">
             <div class="section-header">
                 <div>
-                    <div class="section-title">🔍 S&P 500 피터 린치 최우수 저평가 고성장주 TOP 15</div>
+                    <div class="section-title">🔍 S&P 500 미국 가치주 최우수 저평가 가치주 TOP 15</div>
                     <div class="section-subtitle">선별 기준: PEG < 1.0 (극저평가) | EPS성장률 > 12% | 부채비율 < 100% | 잉여현금흐름(FCF) > 0</div>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
@@ -1002,7 +1002,7 @@ def generate_peter_lynch_dashboard_html() -> str:
                         </div>
                     </div>
                     <div class="card-bottom-row">
-                        <div>린치 적정가: <strong style="color: var(--accent-gold);">${fair_v:.2f}</strong> (상승여력 <span style="color: var(--accent-green); font-weight:700;">+{disc:.1f}%</span>)</div>
+                        <div>적정가: <strong style="color: var(--accent-gold);">${fair_v:.2f}</strong> (상승여력 <span style="color: var(--accent-green); font-weight:700;">+{disc:.1f}%</span>)</div>
                         <div>부채비율: {de:.1f}%</div>
                     </div>
                 </div>
@@ -1023,7 +1023,7 @@ def generate_peter_lynch_dashboard_html() -> str:
                             <th class="text-center">PEG 비율</th>
                             <th class="text-right">EPS 성장률</th>
                             <th class="text-right">부채비율</th>
-                            <th class="text-right">린치 적정가($)</th>
+                            <th class="text-right">적정가($)</th>
                             <th class="text-center">상승여력</th>
                         </tr>
                     </thead>
@@ -1097,10 +1097,10 @@ def generate_peter_lynch_dashboard_html() -> str:
                     </div>
                 </div>
 
-                <!-- 2위: 미국 피터 린치 GARP 저평가 성장주 -->
+                <!-- 2위: 미국 미국 저평가 가치주 -->
                 <div class="bt-card winner">
                     <div class="bt-title">
-                        <span>🥈 미국 피터 린치 GARP 저평가 성장주</span>
+                        <span>🥈 미국 미국 저평가 가치주</span>
                         <span class="tag tag-green">20년 2위</span>
                     </div>
                     <div class="bt-stat-row">
@@ -1136,7 +1136,7 @@ def generate_peter_lynch_dashboard_html() -> str:
                         <span>8.95%</span>
                     </div>
                     <div class="bt-stat-row">
-                        <span style="color: var(--text-muted);">피터 린치 초과 성과</span>
+                        <span style="color: var(--text-muted);">미국 가치주 초과 성과</span>
                         <strong style="color: var(--accent-green);">시장 대비 +13.24%p 알파 창출</strong>
                     </div>
                 </div>
@@ -1163,12 +1163,12 @@ def generate_peter_lynch_dashboard_html() -> str:
             </div>
         </div>
 
-        <!-- 섹션 4: 인터랙티브 린치 적정주가 계산기 -->
+        <!-- 섹션 4: 인터랙티브 적정주가 계산기 -->
         <div class="section" id="section-calc">
             <div class="section-header">
                 <div>
-                    <div class="section-title">🧮 피터 린치 인터랙티브 적정주가 계산기</div>
-                    <div class="section-subtitle">공식: 피터 린치 적정주가 = EPS × min(성장률, 35) | PEG = PER / 성장률</div>
+                    <div class="section-title">🧮 미국 가치주 인터랙티브 적정주가 계산기</div>
+                    <div class="section-subtitle">공식: 미국 가치주 적정주가 = EPS × min(성장률, 35) | PEG = PER / 성장률</div>
                 </div>
             </div>
             
@@ -1195,9 +1195,9 @@ def generate_peter_lynch_dashboard_html() -> str:
                     </div>
                 </div>
                 <div class="calc-result-box">
-                    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 2px;">피터 린치 산출 적정가치 & 평가</div>
+                    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 2px;">미국 가치주 산출 적정가치 & 평가</div>
                     <div class="calc-result-val" id="calcResultDisplay">$130.00 (+36.8%)</div>
-                    <div class="calc-result-eval" id="calcEvalDisplay">PEG 0.73 · 🟢 매력적인 저평가 성장주 (매수 고려)</div>
+                    <div class="calc-result-eval" id="calcEvalDisplay">PEG 0.73 · 🟢 매력적인 저평가 가치주 (매수 고려)</div>
                 </div>
             </div>
         </div>
@@ -1205,7 +1205,7 @@ def generate_peter_lynch_dashboard_html() -> str:
         <!-- 하단 푸터 및 스마트폰 QR -->
         <div class="footer">
             <div style="font-weight: 700; color: var(--text-heading); margin-bottom: 6px;">
-                🏛️ 피터 린치 미국 저평가 성장주 퀀트 시스템 · 20개년 실증 백테스트 은메달 (CAGR 22.2%)
+                🏛️ 미국 저평가 가치주 퀀트 시스템 · 20개년 실증 백테스트 은메달 (CAGR 22.2%)
             </div>
             <div>
                 한국투자증권 Open API 실전 계좌 연동 · GitHub Pages 실시간 자동 동기화
@@ -1286,9 +1286,9 @@ def generate_peter_lynch_dashboard_html() -> str:
                 pegStr = peg.toFixed(2);
 
                 if (peg < 0.6) {
-                    evalStr = `PEG ${pegStr} · 🟢 극저평가 고성장주 (적극 매수 기회)`;
+                    evalStr = `PEG ${pegStr} · 🟢 극저평가 가치주 (적극 매수 기회)`;
                 } else if (peg < 1.0) {
-                    evalStr = `PEG ${pegStr} · 🟢 매력적인 저평가 성장주 (매수 고려)`;
+                    evalStr = `PEG ${pegStr} · 🟢 매력적인 저평가 가치주 (매수 고려)`;
                 } else if (peg <= 1.5) {
                     evalStr = `PEG ${pegStr} · 🟡 적정 가치 (보유 관망)`;
                 } else {
