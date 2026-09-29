@@ -1,7 +1,7 @@
-"""피터 린치 저평가 고성장주 미국주식 자동 매수 & 포트폴리오 리밸런싱 엔진 (peter_lynch_rebalancer.py)
+"""미국 저평가 가치주 미국주식 자동 매수 & 포트폴리오 리밸런싱 엔진 (peter_lynch_rebalancer.py)
 
 지원 기능:
-1. 최신 피터 린치 TOP N(기본 10~12개) 저평가 고성장주 자동 선정
+1. 최신 미국 가치주 TOP N(기본 10~12개) 저평가 가치주 자동 선정
 2. 한국투자증권(KIS) 미국주식 계좌 실시간 잔고 및 보유 포지션 조회
 3. 균등 비중(Equal Weight) 목표 배분 및 탈락 종목 매도 / 신규 종목 매수 수량 자동 산출
 4. 🧪 안전 가상 시뮬레이션(Dry-Run) 및 ⚡ 실전/모의 주문 즉시 집행 지원
@@ -48,22 +48,56 @@ def get_current_price(symbol: str) -> float:
     return 0.0
 
 
+MAX_PER_SECTOR = 3
+
+
+def marketable_limit(o: dict) -> float:
+    """[v3] 시세 그대로의 지정가는 미체결로 만료되기 쉬워(2026-09-28 주문이 전부 미체결) 체결 가능한 지정가로 보정."""
+    return round(o["price"] * (1.01 if o["side"] == "BUY" else 0.99), 2)
+
+
 def plan_lynch_rebalancing(
     target_count: int = 10,
     capital_override: float | None = None,
     client: KisUsClient | None = None
 ) -> dict:
-    """피터 린치 원칙에 따른 리밸런싱 주문 계획을 수립합니다."""
+    """미국 가치주 원칙에 따른 리밸런싱 주문 계획을 수립합니다."""
     if client is None:
         client = KisUsClient()
 
     # 1. 최신 스크리너 결과 확인 (없으면 자동 실행)
     if not os.path.exists(TOP_PICKS_FILE):
-        print("🔍 최신 스크리닝 데이터가 없어 피터 린치 스크리너를 즉시 실행합니다...")
-        run_peter_lynch_screening(limit_tickers=200)
+        print("🔍 최신 스크리닝 데이터가 없어 미국 가치주 스크리너를 즉시 실행합니다...")
+        run_peter_lynch_screening(limit_tickers=None)
 
     top_df = pd.read_csv(TOP_PICKS_FILE)
-    top_candidates = top_df.head(target_count).to_dict(orient="records")
+    # [v3] 보유 유지 밴드: 기존 보유 종목은 순위가 target_count*1.5 이내면 계속 보유(회전율 11.9→7.2회/년, MDD 개선).
+    #      15년 PIT 백테스트(backtest_v2/run_lynch_long4.py): 분기 리밸+밴드1.5+-25%손절 = CAGR 16.3%, MDD -35.8%
+    #      (월간·밴드 없음: 16.9%, -45.6%)
+    ranked = [str(s).upper() for s in top_df["symbol"].tolist()]
+    px_csv = {str(r["symbol"]).upper(): float(r["price"]) for r in top_df.to_dict(orient="records")}
+    # 섹터당 최대 3종목 (금융·보험 쏠림 방지). 순위는 이 제한을 적용한 순서 기준.
+    _sec = {str(r["symbol"]).upper(): str(r.get("sector", "?")) for r in top_df.to_dict(orient="records")}
+    _cnt, _capped = {}, []
+    for s_ in ranked:
+        if _cnt.get(_sec.get(s_, "?"), 0) < MAX_PER_SECTOR:
+            _capped.append(s_)
+            _cnt[_sec.get(s_, "?")] = _cnt.get(_sec.get(s_, "?"), 0) + 1
+    ranked = _capped
+    try:
+        _bal_pre = client.get_us_balance()
+        _held = {h["symbol"].upper() for h in _bal_pre.get("holdings", []) if h.get("shares", 0) > 0}
+        _slot = float(_bal_pre.get("total_asset_usd", 0.0)) / target_count
+    except Exception:
+        _held, _slot = set(), 0.0
+    # 종목당 배정금액보다 비싼 종목은 1주도 살 수 없으므로 신규 편입 후보에서 제외하고 다음 순위로 채움
+    affordable = [s for s in ranked if s in _held or _slot <= 0 or px_csv.get(s, 0.0) <= _slot]
+    band = set(ranked[: int(target_count * 1.5)])
+    keep = [s for s in ranked if s in _held and s in band][:target_count]
+    fill = [s for s in affordable if s not in keep][: target_count - len(keep)]
+    chosen = keep + fill
+    by_sym = {str(r["symbol"]).upper(): r for r in top_df.to_dict(orient="records")}
+    top_candidates = [by_sym[s] for s in chosen if s in by_sym]
     top_symbols = [c["symbol"].upper() for c in top_candidates]
 
     # 2. 계좌 잔고 및 보유 종목 조회
@@ -85,7 +119,9 @@ def plan_lynch_rebalancing(
 
     holdings = bal.get("holdings", [])
     # KIS 잔고가 비어있다면 로컬 portfolio.json 참조
-    if not holdings:
+    # [v3] 실계좌(가상 아님)의 잔고가 비어 있으면 '진짜 무보유'다. 예전에는 portfolio.json(주문 접수만 되고
+    #      체결되지 않은 가짜 보유)을 대신 읽어 '이미 보유 중'으로 착각 → 영영 매수하지 않았음.
+    if not holdings and is_virtual:
         local_p = load_portfolio()
         for p in local_p:
             sym = p.get("symbol", p.get("code", "")).upper()
@@ -105,7 +141,7 @@ def plan_lynch_rebalancing(
     target_equity_per_stock = total_asset / target_count
     orders = []
 
-    # 단계 A: 탈락 종목 전량 매도 (기존 보유 종목 중 린치 상위권에서 탈락한 종목)
+    # 단계 A: 탈락 종목 전량 매도 (기존 보유 종목 중 가치주 상위권에서 탈락한 종목)
     for sym, h in current_holding_map.items():
         if sym not in top_symbols:
             curr_p = h["current_price"] or get_current_price(sym)
@@ -120,16 +156,14 @@ def plan_lynch_rebalancing(
                     "qty": h["shares"],
                     "price": curr_p,
                     "amount": round(curr_p * h["shares"], 2),
-                    "reason": "피터린치 유망주 순위 탈락 또는 조건 미달",
+                    "reason": "미국 가치주 유망주 순위 탈락 또는 조건 미달",
                 })
                 cash_available += curr_p * h["shares"]
 
     # 단계 B: 목표 유망주 리밸런싱 및 신규 매수
     for c in top_candidates:
         sym = c["symbol"].upper()
-        curr_p = float(c["price"])
-        if curr_p <= 0:
-            curr_p = get_current_price(sym)
+        curr_p = get_current_price(sym) or float(c["price"])   # [v3] 실시간 시세 우선
         if curr_p <= 0:
             continue
 
@@ -187,6 +221,32 @@ def plan_lynch_rebalancing(
 
 
 
+EMERGENCY_STOP_PCT = 0.25   # 명세서의 -25% 비상 손절 (기존에는 알림만 하고 실제 주문은 없었음)
+
+
+def enforce_emergency_stops(client: KisUsClient | None = None, is_dry_run: bool = True, stop_pct: float = EMERGENCY_STOP_PCT) -> list[dict]:
+    """보유 종목 중 평단 대비 -25% 이하인 종목을 매도한다. 매도 후 다음 월간 리밸런싱까지 재매수하지 않음(portfolio.json 에서 제거)."""
+    if client is None:
+        client = KisUsClient()
+    bal = client.get_us_balance()
+    sold = []
+    for h in bal.get("holdings", []):
+        bp, cp, qty = float(h.get("buy_price", 0) or 0), float(h.get("current_price", 0) or 0), int(h.get("shares", 0) or 0)
+        if bp <= 0 or cp <= 0 or qty <= 0:
+            continue
+        ret = cp / bp - 1
+        if ret > -stop_pct:
+            continue
+        sym = h["symbol"].upper()
+        limit_px = round(cp * 0.98, 2)   # 시장성 지정가(현재가 -2%)로 체결 확률 확보
+        res = client.order_us_stock(symbol=sym, qty=qty, price=limit_px, side="SELL", order_type="00", dry_run=is_dry_run)
+        print(f"🚨 [비상 손절] {sym} {ret*100:+.1f}% → {qty}주 매도 {'(DRY-RUN)' if is_dry_run else ''}: {res.get('msg')}")
+        sold.append({"symbol": sym, "return_pct": ret * 100, "qty": qty, "result": res})
+        if res.get("success") and not is_dry_run:
+            save_portfolio([p for p in load_portfolio() if p.get("symbol", p.get("code", "")).upper() != sym])
+    return sold
+
+
 def trigger_peter_lynch_dashboard_sync():
     """모바일 대시보드(GitHub Pages) 비동기 동기화"""
     import threading
@@ -235,7 +295,7 @@ def execute_rebalancing(
 
     print("=" * 95)
     mode_str = "🧪 [가상 시뮬레이션 모드 (DRY-RUN)]" if is_dry_run else "⚡ [실제 주문 집행 모드 (EXECUTE)]"
-    print(f" {mode_str} 피터 린치 포트폴리오 리밸런싱")
+    print(f" {mode_str} 미국 가치주 포트폴리오 리밸런싱")
     print(f" • 계좌: {plan['account_no']} ({'모의투자' if plan['is_mock'] else '실전계좌'})")
     print(f" • 총 운용 자산: ${total_asset:,.2f} | 목표 종목 수: {plan['target_count']}개 (종목당 ~${plan['target_equity_per_stock']:,.2f})")
     print("=" * 95)
@@ -297,7 +357,7 @@ def execute_rebalancing(
             res = client.order_us_stock(
                 symbol=o["symbol"],
                 qty=o["qty"],
-                price=o["price"],
+                price=marketable_limit(o),
                 side=o["side"],
                 order_type="00",
                 dry_run=False
@@ -306,42 +366,22 @@ def execute_rebalancing(
             status_icon = "✅" if res.get("success") else "❌"
             print(f" {status_icon} {o['side']} {o['symbol']} x {o['qty']}주 @ ${o['price']:.2f} -> {res.get('msg')}")
 
-        # 포트폴리오 JSON 갱신 (기존 보유 종목의 평단가 가중치 및 매수일자 보존)
-        old_portfolio = {p.get("symbol", p.get("code", "")).upper(): p for p in load_portfolio()}
-        for c in plan["top_candidates"]:
-            sym = c["symbol"].upper()
-            target_sh = int(plan["target_equity_per_stock"] / float(c["price"]))
-            if target_sh > 0:
-                p_curr = float(c["price"])
-                old_p = old_portfolio.get(sym)
-                if old_p and old_p.get("shares", 0) > 0:
-                    old_sh = old_p.get("shares", 0)
-                    old_bp = float(old_p.get("buy_price", p_curr))
-                    # 가중 평균 단가
-                    if target_sh > old_sh:
-                        add_sh = target_sh - old_sh
-                        new_bp = round((old_sh * old_bp + add_sh * p_curr) / target_sh, 2)
-                    else:
-                        new_bp = old_bp
-                    buy_date = old_p.get("buy_date", datetime.datetime.now().strftime("%Y-%m-%d"))
-                else:
-                    new_bp = p_curr
-                    buy_date = datetime.datetime.now().strftime("%Y-%m-%d")
-
-                new_portfolio_positions.append({
-                    "symbol": sym,
-                    "code": sym,
-                    "name": c.get("name", sym),
-                    "market": "US",
-                    "shares": target_sh,
-                    "buy_price": new_bp,
-                    "buy_date": buy_date,
-                    "initial_peg": c.get("peg"),
-                    "fair_value": c.get("fair_value"),
-                    "memo": "피터 린치 자동 리밸런싱"
-                })
-        save_portfolio(new_portfolio_positions)
-        print("💾 portfolio.json 포트폴리오 내역이 성공적으로 갱신되었습니다.")
+        # [v3] portfolio.json 은 주문 접수 결과가 아니라 KIS 실제 잔고(체결분)로만 갱신한다.
+        #      (기존: 주문이 접수만 되고 미체결이어도 목표 수량을 보유로 기록 → 가짜 포지션이 대시보드에 표시됨)
+        try:
+            from portfolio_manager import sync_portfolio_from_kis
+            real_now = client.get_us_balance()
+            synced = sync_portfolio_from_kis(real_now.get("holdings", []))
+            meta = {c["symbol"].upper(): c for c in plan["top_candidates"]}
+            for p_ in synced:
+                c_ = meta.get(p_["symbol"])
+                if c_:
+                    p_["initial_peg"] = p_.get("initial_peg") or c_.get("peg")
+                    p_["fair_value"] = p_.get("fair_value") or c_.get("fair_value")
+            save_portfolio(synced)
+            print(f"💾 portfolio.json 을 KIS 실제 체결 잔고({len(synced)}종목)로 동기화했습니다. (미체결 주문은 체결 후 반영)")
+        except Exception as e:
+            print(f"⚠️ 잔고 동기화 실패: {e}")
         trigger_peter_lynch_dashboard_sync()
 
     else:
@@ -350,7 +390,7 @@ def execute_rebalancing(
             res = client.order_us_stock(
                 symbol=o["symbol"],
                 qty=o["qty"],
-                price=o["price"],
+                price=marketable_limit(o),
                 side=o["side"],
                 order_type="00",
                 dry_run=True
@@ -373,7 +413,7 @@ def execute_rebalancing(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="피터 린치 포트폴리오 자동 리밸런싱 도구")
+    parser = argparse.ArgumentParser(description="미국 가치주 포트폴리오 자동 리밸런싱 도구")
     parser.add_argument("--count", type=int, default=10, help="목표 균등 분산 종목 수 (기본: 10개)")
     parser.add_argument("--capital", type=float, default=None, help="시뮬레이션 운용 자산 설정 ($)")
     parser.add_argument("--execute", action="store_true", help="실제 주문 집행 (기본값은 안전 가상 시뮬레이션)")
@@ -397,3 +437,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
