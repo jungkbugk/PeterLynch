@@ -1,4 +1,4 @@
-"""피터 린치 저평가 성장주 웹 관리 서버 (web_app.py)
+"""미국 저평가 가치주 웹 관리 서버 (web_app.py)
 
 - 로컬 HTTP 서버(포트 5055)를 실행하고 브라우저를 자동 오픈합니다.
 - 최신 스크리닝 데이터 및 포트폴리오를 실시간 렌더링합니다.
@@ -54,7 +54,7 @@ def run_web_server():
     server_address = ("127.0.0.1", PORT)
     httpd = HTTPServer(server_address, PeterLynchWebHandler)
     url = f"http://127.0.0.1:{PORT}"
-    print(f"[OK] 피터 린치 웹 대시보드 서버 가동 중: {url}")
+    print(f"[OK] 미국 가치주 웹 대시보드 서버 가동 중: {url}")
     webbrowser.open(url)
     try:
         httpd.serve_forever()
