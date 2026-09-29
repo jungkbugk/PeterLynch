@@ -1,10 +1,10 @@
-"""피터 린치 저평가 성장주 보유 포지션 감시 및 매도 신호 모니터링 엔진 (peter_lynch_monitor.py)
+"""미국 저평가 가치주 보유 포지션 감시 및 매도 신호 모니터링 엔진 (peter_lynch_monitor.py)
 
-[피터 린치 5대 매도 & 리스크 관리 원칙]
+[미국 가치주 5대 매도 & 리스크 관리 원칙]
 1. 🚨 원금 보호 손절 (Hard Stop): 매수가 대비 -8% ~ -10% 도달 시 기계적 손절 (가치 훼손 조기 차단)
 2. ⚠️ PEG 과열 버블 (PEG Overheating): 주가 급등으로 PEG > 1.8 도달 시 저평가 매력 상실 -> 전량/분할 익절 권고
 3. ⚠️ 실적 훼손 경고 (Story Break): 분기 EPS 역성장 전환 또는 부채비율 급증 시 매수 이유 소멸로 매도
-4. 🎯 공정 가치선 도달 (Fair Value Target): 주가가 피터 린치 적정가치선(EPS * 성장률) 돌파 시 분할 익절
+4. 🎯 공정 가치선 도달 (Fair Value Target): 주가가 미국 가치주 적정가치선(EPS * 성장률) 돌파 시 분할 익절
 5. 🟢 텐배거 지속 보유 (Super Growth Hold): 저PEG(< 1.0) 및 고성장 지속 시 장기 복리 극대화를 위한 강력 보유
 """
 
@@ -36,7 +36,7 @@ os.makedirs(RESULTS_DIR, exist_ok=True)
 
 
 def analyze_single_position(pos: dict) -> dict | None:
-    """단일 보유 포지션의 펀더멘털 및 시세를 실시간 진단하여 린치 매도 신호를 판별합니다."""
+    """단일 보유 포지션의 펀더멘털 및 시세를 실시간 진단하여 가치주 매도 신호를 판별합니다."""
     symbol = pos.get("symbol", pos.get("code", "")).strip().upper()
     if not symbol:
         return None
@@ -81,7 +81,7 @@ def analyze_single_position(pos: dict) -> dict | None:
         profit_amount = round((current_price - buy_price) * shares, 2) if buy_price > 0 else 0.0
 
         # ====================================================
-        # 피터 린치 5대 매도/보유 규칙 판별
+        # 미국 가치주 5대 매도/보유 규칙 판별
         # ====================================================
         status = "NEUTRAL_HOLD"
         tag = "⚪추세관망"
@@ -107,7 +107,7 @@ def analyze_single_position(pos: dict) -> dict | None:
             status = "FUNDAMENTAL_WARN"
             tag = "⚠️실적악화"
             action = "SELL"
-            reason = f"최근 분기 EPS가 {eps_growth*100:+.1f}% 역성장 전환. 피터 린치 성장 스토리 훼손"
+            reason = f"최근 분기 EPS가 {eps_growth*100:+.1f}% 역성장 전환. 미국 가치주 성장 스토리 훼손"
         elif debt_to_equity and debt_to_equity > 120:
             status = "FUNDAMENTAL_WARN"
             tag = "⚠️부채경고"
@@ -119,7 +119,7 @@ def analyze_single_position(pos: dict) -> dict | None:
             status = "TARGET_REACHED"
             tag = "🎯목표도달"
             action = "PARTIAL_SELL"
-            reason = f"피터 린치 적정주가(${fair_value:.2f}) 도달 및 수익률 {return_pct:+.1f}%. 분할 익절 권고"
+            reason = f"미국 가치주 적정주가(${fair_value:.2f}) 도달 및 수익률 {return_pct:+.1f}%. 분할 익절 권고"
 
         # 5. 🟢 텐배거 지속 보유 (Super Growth Strong Hold)
         elif (peg is not None and peg <= 1.1) and (eps_growth is not None and eps_growth >= 0.12):
@@ -156,7 +156,7 @@ def run_peter_lynch_monitor(send_telegram: bool = True) -> list[dict]:
     """보유 포지션 모니터링 실행"""
     today_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
     print("=" * 95)
-    print(" 🏛️ [피터 린치 미국 저평가 성장주 보유 포지션 실시간 감시 엔진]")
+    print(" 🏛️ [미국 저평가 가치주 보유 포지션 실시간 감시 엔진]")
     print(f" • 실행 시각: {today_str}")
     print(" • 감시 원칙: PEG 과열(>1.8) 익절 | 원금 보호(-8%) 손절 | 실적 훼손 매도 | 저평가 텐배거 지속 보유")
     print("=" * 95)
@@ -189,7 +189,7 @@ def run_peter_lynch_monitor(send_telegram: bool = True) -> list[dict]:
         if send_telegram and top_picks:
             report_msg = build_lynch_monitor_report(today_str, top_picks, [])
             send_telegram_message(report_msg)
-            print("📲 텔레그램으로 최신 피터 린치 추천 유망주 리포트를 전송했습니다.")
+            print("📲 텔레그램으로 최신 미국 가치주 추천 유망주 리포트를 전송했습니다.")
         return []
 
     print(f"🔍 보유 포지션 {len(portfolio)}개 종목 실시간 펀더멘털 및 주가 진단 중...\n")
@@ -273,7 +273,7 @@ def run_peter_lynch_monitor(send_telegram: bool = True) -> list[dict]:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="피터 린치 보유 포지션 감시 엔진")
+    parser = argparse.ArgumentParser(description="미국 가치주 보유 포지션 감시 엔진")
     parser.add_argument("--no-telegram", action="store_true", help="텔레그램 전송 비활성화")
     args = parser.parse_args()
 
