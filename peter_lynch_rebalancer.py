@@ -100,6 +100,31 @@ def plan_lynch_rebalancing(
     top_candidates = [by_sym[s] for s in chosen if s in by_sym]
     top_symbols = [c["symbol"].upper() for c in top_candidates]
 
+    # 신호 원장: 상위 순위 종목별 선정/탈락 사유 (섹터 제한, 매수 불가 가격, 밴드 등)
+    if not capital_override:
+        try:
+            sys.path.insert(0, r"C:\Users\user\부자되기\ledger")
+            import trade_ledger as _sl
+            raw_rank = [str(s).upper() for s in top_df["symbol"].tolist()]
+            for i, s_ in enumerate(raw_rank[: int(target_count * 2)], 1):
+                if s_ in keep:
+                    dec, why = "HOLD", f"보유 유지(원순위 {i}위, 밴드 {int(target_count * 1.5)}위 이내)"
+                elif s_ in fill:
+                    dec, why = "BUY", f"신규 편입 대상(원순위 {i}위)"
+                elif s_ not in _capped:
+                    dec, why = "REJECT", f"섹터 상한({MAX_PER_SECTOR}종목) 초과: {_sec.get(s_, '?')} (원순위 {i}위)"
+                elif s_ not in affordable:
+                    dec, why = "REJECT", f"1주 가격 ${px_csv.get(s_, 0):,.0f} > 종목당 배정 ${_slot:,.0f} (원순위 {i}위)"
+                else:
+                    dec, why = "REJECT", f"목표 {target_count}종목 초과 (원순위 {i}위)"
+                _sl.record_signal("US", s_, dec, why, name=str(by_sym.get(s_, {}).get("name", "")),
+                                  context={"rank": i, "sector": _sec.get(s_), "price": px_csv.get(s_)})
+            for h_ in _held:
+                if h_ not in chosen:
+                    _sl.record_signal("US", h_, "EXIT", "보유 중이나 순위 밴드 이탈/조건 미달 → 매도 대상", context={})
+        except Exception as e:  # noqa: BLE001
+            print(f"[원장] US 신호 기록 실패: {e}")
+
     # 2. 계좌 잔고 및 보유 종목 조회
     bal = client.get_us_balance()
     is_virtual = bal.get("is_virtual_fallback", False)
@@ -242,6 +267,15 @@ def enforce_emergency_stops(client: KisUsClient | None = None, is_dry_run: bool 
         res = client.order_us_stock(symbol=sym, qty=qty, price=limit_px, side="SELL", order_type="00", dry_run=is_dry_run)
         print(f"🚨 [비상 손절] {sym} {ret*100:+.1f}% → {qty}주 매도 {'(DRY-RUN)' if is_dry_run else ''}: {res.get('msg')}")
         sold.append({"symbol": sym, "return_pct": ret * 100, "qty": qty, "result": res})
+        if not is_dry_run:
+            try:
+                sys.path.insert(0, r"C:\Users\user\부자되기\ledger")
+                import trade_ledger as _ledger
+                _ledger.record_order("US", sym, "SELL", qty, limit_px, name=h.get("name", ""), order_no=res.get("order_no", ""),
+                                     status="ORDERED" if res.get("success") else "FAILED", reason=f"비상 손절 {ret*100:.1f}%", currency="USD",
+                                     context={"buy_price": bp, "current_price": cp, "return_pct": round(ret * 100, 2)})
+            except Exception:
+                pass
         if res.get("success") and not is_dry_run:
             save_portfolio([p for p in load_portfolio() if p.get("symbol", p.get("code", "")).upper() != sym])
     return sold
@@ -363,6 +397,18 @@ def execute_rebalancing(
                 dry_run=False
             )
             results.append(res)
+            try:
+                sys.path.insert(0, r"C:\Users\user\부자되기\ledger")
+                import trade_ledger as _ledger
+                _cand = {str(c_["symbol"]).upper(): c_ for c_ in plan.get("top_candidates", [])}.get(o["symbol"], {})
+                _ledger.record_order(
+                    "US", o["symbol"], o["side"], o["qty"], marketable_limit(o), name=o.get("name", ""), order_no=res.get("order_no", ""),
+                    status="ORDERED" if res.get("success") else "FAILED", reason=o.get("reason", ""), currency="USD",
+                    context={"ref_price": o.get("price"), "value_rank": _cand.get("value_rank"), "earnings_yield": _cand.get("earnings_yield"),
+                             "fcf_yield": _cand.get("fcf_yield"), "book_to_price": _cand.get("book_to_price"), "sector": _cand.get("sector"),
+                             "total_asset": plan.get("total_asset"), "target_per_stock": plan.get("target_equity_per_stock"), "msg": res.get("msg")})
+            except Exception:
+                pass
             status_icon = "✅" if res.get("success") else "❌"
             print(f" {status_icon} {o['side']} {o['symbol']} x {o['qty']}주 @ ${o['price']:.2f} -> {res.get('msg')}")
 
